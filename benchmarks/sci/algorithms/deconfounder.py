@@ -23,6 +23,8 @@ from spacebench.algorithms import SpaceAlgo
 from spacebench.log import LOGGER
 import os
 from .spatialplus import SpatialPlus
+from .spatialplus_median import SpatialPlusMedian
+from sci.algorithms.datautils import spatial_train_test_split
 # from .pysal_spreg import GMLag
 from copy import deepcopy
 
@@ -33,6 +35,7 @@ import matplotlib.pyplot as plt
 
 total_batch_size = 64
 latent_idx = "mu" # "z_s" for sample and "mu" for expected value for latents
+
 
 class CVAE_Grid(nn.Module):
     def __init__(
@@ -842,11 +845,13 @@ class UNetDataset(Dataset):
 
         treat_size = 2*radius + 1
         cov_size = 2*dataset_radius + 1
-        target_size = max(treat_size, cov_size)
+        
+        self.latents = torch.from_numpy(latent)
+        latent_size = self.latents.shape[1]  # spatial dim: 2*cvae_radius+1
+        target_size = max(treat_size, cov_size, latent_size)
 
         self.treatments = pad_center(self.treatments, target_size)
         self.covariates = pad_center(self.covariates, target_size)
-        self.latents = torch.from_numpy(latent)
         self.latents = pad_center(self.latents, target_size)
         self.covariates = torch.cat([self.covariates, self.latents], dim=-1)
         
@@ -1005,6 +1010,23 @@ class Deconfounder(SpaceAlgo):
             dataset_radius=dataset.conf_radius,
         )
 
+    @staticmethod
+    def _orthogonalize_latents_wrt_treatment(latents: np.ndarray, treatment: np.ndarray) -> np.ndarray:
+        """Project out the treatment direction from latents.
+
+        Z_ortho = Z - T_c * (T_c·Z) / (T_c·T_c),  T_c = T - mean(T).
+        Prevents Z from over-explaining T in the SpatialPlus t-model and from
+        absorbing the T->Y causal effect in the y-model.
+        
+        # This is only a problem in dataset with interference radius 2
+        """
+        T_c = treatment - treatment.mean()
+        denom = float(T_c @ T_c)
+        if denom < 1e-12:
+            return latents
+        proj = (T_c @ latents) / denom  # (d_z,)
+        return latents - np.outer(T_c, proj)
+
     def fit(self, dataset: SpaceDataset, tune=False):
         self.tune = tune
         import wandb
@@ -1146,7 +1168,8 @@ class Deconfounder(SpaceAlgo):
 
             val_latents = self.cvae_trainer.predict(self.cvae_model, latent_loader)
             val_latents = torch.cat([o[latent_idx] for o in val_latents]).view(B, -1).cpu().numpy()
-
+            if "health" in dataset.parent_env and dataset.radius == 2:
+                val_latents = self._orthogonalize_latents_wrt_treatment(val_latents, dataset.treatment)
 
             new_dataset = deepcopy(dataset)
             if self.nbr_treatment_radius != 0:
@@ -1155,7 +1178,14 @@ class Deconfounder(SpaceAlgo):
                 new_dataset.covariates = np.concatenate([new_dataset.covariates, val_latents], axis=1)
 
             if self.head == "spatialplus":
-                self.head_model = SpatialPlus(**self.spatialplus_kwargs)
+                if dataset.radius == 1:
+                    self.head_model = SpatialPlus(**self.spatialplus_kwargs)
+                elif dataset.radius == 2:
+                    if "health" in dataset.parent_env:
+                        self.head_model = SpatialPlus(**self.spatialplus_kwargs)
+                    else:
+                        self.head_model = SpatialPlusMedian(**self.spatialplus_kwargs, use_z=True)
+                        self.head_model.n_z_covars = int(val_latents.shape[1])
                 self.head_model.fit(new_dataset)
             elif self.head == "s2sls-lag1":
                 from .pysal_spreg import GMLag
@@ -1511,7 +1541,9 @@ class Deconfounder(SpaceAlgo):
 
             if np.isnan(latents).any():
                 return 100000
-
+            
+            if "health" in dataset.parent_env and dataset.radius == 2:
+                latents = self._orthogonalize_latents_wrt_treatment(latents, dataset.treatment)
             new_dataset = deepcopy(dataset)
             if self.nbr_treatment_radius != 0:
                 nbr_treat_data = self._get_neighbor_treatment_data(
@@ -1565,6 +1597,8 @@ class Deconfounder(SpaceAlgo):
             torch.cuda.empty_cache()
         elif self.head == "spatialplus" or self.head == "s2sls-lag1":
             latents = latents.view(predict_data.treatments.shape[0], -1).cpu().numpy()
+            if "health" in dataset.parent_env and dataset.radius == 2:
+                latents = self._orthogonalize_latents_wrt_treatment(latents, dataset.treatment)
 
         # Build the dataset seen by the outcome head.  When
         # cf_full_treatment is given, swap in the counterfactual treatment
@@ -1644,8 +1678,8 @@ class Deconfounder(SpaceAlgo):
         }, 'saved_data.pt')
         
         # save_maps_grid(self.max_coords2id, latents, use_center_only=False, filename=filename, standardize=True, use_pca=True)
-        save_maps_grid(small_coords2id, mu, use_center_only=True, filename=filename.replace('.pdf', '_mucenter.pdf'), standardize=True, use_pca=False, fit_on_all_pixels=False)
-        save_maps_grid(small_coords2id, logvar, use_center_only=True, filename=filename.replace('.pdf', '_varcenter.pdf'), standardize=True, use_pca=False, fit_on_all_pixels=False)
+        # save_maps_grid(small_coords2id, mu, use_center_only=True, filename=filename.replace('.pdf', '_mucenter.pdf'), standardize=True, use_pca=False, fit_on_all_pixels=False)
+        # save_maps_grid(small_coords2id, logvar, use_center_only=True, filename=filename.replace('.pdf', '_varcenter.pdf'), standardize=True, use_pca=False, fit_on_all_pixels=False)
         # save_maps_grid(small_coords2id, dataset.missing_covariates[nodes], filename=filename, standardize=True, use_pca=False)
             
     

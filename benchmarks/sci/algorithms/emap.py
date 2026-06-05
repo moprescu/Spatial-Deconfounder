@@ -8,6 +8,7 @@ from spacebench.algorithms import SpaceAlgo
 from spacebench.log import LOGGER
 from sci import SpaceDataset
 from .spatialplus import SpatialPlus, Spatial
+from .spatialplus_median import SpatialPlusMedian
 from .utils import get_k_hop_neighbors
 from copy import deepcopy
 import networkx as nx
@@ -271,6 +272,9 @@ class EMAP(SpaceAlgo):
             self.head_model = SpatialPlus(**self.spatialplus_kwargs)
         elif self.modelname == "spatial":
             self.head_model = Spatial(**self.spatial_kwargs)
+        elif self.modelname == "spatialplus_median":
+            self.head_model = SpatialPlusMedian(**self.spatialplus_kwargs)
+            self.head_model.N_SEEDS = 4
         self.head_model.fit(new_dataset)
         LOGGER.debug("fitting complete.")
 

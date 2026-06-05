@@ -27,11 +27,12 @@ spaceenvs:
     # - pm25grid_rad1_so4_pm_disc_sparse_30
     # - pm25grid_rad1_so4_pm_disc_sparse_70
 
-    # - small_healthdgrid_rad1_pollutn_mortality_disc_singlecause_10
-    # - small_healthdgrid_rad1_pollutn_mortality_disc_singlecause_30
+#     - small_healthdgrid_rad1_pollutn_mortality_disc_singlecause_10
+#     - small_healthdgrid_rad1_pollutn_mortality_disc_singlecause_20
+#     - small_healthdgrid_rad1_pollutn_mortality_disc_singlecause_30
     
-    # - small_healthdgrid_rad1_pollutn_mortality_disc_asym
-    # - small_healthdgrid_rad1_pollutn_mortality_disc_confmod
+#     - small_healthdgrid_rad1_pollutn_mortality_disc_asym
+#     - small_healthdgrid_rad1_pollutn_mortality_disc_confmod
 
 algorithms:
   cont:
@@ -49,8 +50,29 @@ algorithms:
     # - deconfounder_r2_unet_4
     # - deconfounder_r2_unet_8
     # - deconfounder_r2_unet_16
+    
+    # artic
     # - temporal_unet
-    # - deconfounder_r3_temporal_unet_2
+    # - deconfounder_r0_temporal_unet_2
+    # - deconfounder_r0_temporal_unet_4
+    # - deconfounder_r0_temporal_unet_8
+    # - deconfounder_r0_temporal_unet_16
+    # - deconfounder_r0_temporal_unet_32
+    # - deconfounder_r0_temporal_unet_64
+    
+    # - deconfounder_r1_temporal_unet_2
+    # - deconfounder_r1_temporal_unet_4
+    # - deconfounder_r1_temporal_unet_8
+    # - deconfounder_r1_temporal_unet_16
+    # - deconfounder_r1_temporal_unet_32
+    # - deconfounder_r1_temporal_unet_64
+    
+    # - deconfounder_r2_temporal_unet_2
+    # - deconfounder_r2_temporal_unet_4
+    # - deconfounder_r2_temporal_unet_8
+    # - deconfounder_r2_temporal_unet_16
+    # - deconfounder_r2_temporal_unet_32
+    # - deconfounder_r2_temporal_unet_64
   disc:
     # - dapsm
     # - spatial_r1_emap
@@ -64,11 +86,18 @@ algorithms:
     # - gmerror
     # - durbin
     # - unet
+    # - spatialplus_median
+    # - spatialplus_median_r1_emap
+    - spatialplus_median_r2_emap
     
     # change r1 to "r0" or "r2" to change model radius
     # the last number in the name denotes the size of the latent dimension divided by 2
     # i.e. 64 --> d_z = 32
+    # for rad1, pm2.5 -> m change lam_t to [1e-3, 1.0]
+    # for rad1, pm2.5 -> so4 change beta_max to [1e-8, 1e-7]
+    # for rad2, may need to change init_frac to 0.01 for anything including spatialplus
     
+    # nbr1
     # - deconfounder_r0_nbr1_spatialplus_2
     # - deconfounder_r0_nbr1_spatialplus_4
     # - deconfounder_r0_nbr1_spatialplus_8
@@ -76,7 +105,7 @@ algorithms:
     # - deconfounder_r0_nbr1_spatialplus_32
     # - deconfounder_r0_nbr1_spatialplus_64
     
-    # - deconfounder_r1_nbr1_spatialplus_2-Copy1
+    # - deconfounder_r1_nbr1_spatialplus_2
     # - deconfounder_r1_nbr1_spatialplus_4
     # - deconfounder_r1_nbr1_spatialplus_8
     # - deconfounder_r1_nbr1_spatialplus_16
@@ -98,7 +127,7 @@ algorithms:
     # - deconfounder_r0_nbr2_spatialplus_32
     # - deconfounder_r0_nbr2_spatialplus_64
     
-    - deconfounder_r1_nbr2_spatialplus_2-Copy1
+    # - deconfounder_r1_nbr2_spatialplus_2
     # - deconfounder_r1_nbr2_spatialplus_4
     # - deconfounder_r1_nbr2_spatialplus_8
     # - deconfounder_r1_nbr2_spatialplus_16
@@ -113,9 +142,46 @@ algorithms:
     # - deconfounder_r2_nbr2_spatialplus_64
     
     
-    # - deconfounder_r1_unet_64
-    # - deconfounder_r1_unet_32
-    # - deconfounder_r1_unet_16
-    # - deconfounder_r1_unet_8
-    # - deconfounder_r1_unet_4
+    # nbr1
+    # - deconfounder_r0_nbr1_unet_2
+    # - deconfounder_r0_nbr1_unet_4
+    # - deconfounder_r0_nbr1_unet_8
+    # - deconfounder_r0_nbr1_unet_16
+    # - deconfounder_r0_nbr1_unet_32
+    # - deconfounder_r0_nbr1_unet_64
+    
+    # - deconfounder_r1_nbr1_unet_2
+    # - deconfounder_r1_nbr1_unet_4
+    # - deconfounder_r1_nbr1_unet_8
+    # - deconfounder_r1_nbr1_unet_16
+    # - deconfounder_r1_nbr1_unet_32
+    # - deconfounder_r1_nbr1_unet_64
+    
+    # - deconfounder_r2_nbr1_unet_2
+    # - deconfounder_r2_nbr1_unet_4
+    # - deconfounder_r2_nbr1_unet_8
+    # - deconfounder_r2_nbr1_unet_16
+    # - deconfounder_r2_nbr1_unet_32
+    # - deconfounder_r2_nbr1_unet_64
+    
+    # nbr2
+    # - deconfounder_r0_nbr2_unet_2
+    # - deconfounder_r0_nbr2_unet_4
+    # - deconfounder_r0_nbr2_unet_8
+    # - deconfounder_r0_nbr2_unet_16
+    # - deconfounder_r0_nbr2_unet_32
+    # - deconfounder_r0_nbr2_unet_64
+    
+    # - deconfounder_r1_nbr2_unet_2
+    # - deconfounder_r1_nbr2_unet_4
+    # - deconfounder_r1_nbr2_unet_8
+    # - deconfounder_r1_nbr2_unet_16
+    # - deconfounder_r1_nbr2_unet_32
+    # - deconfounder_r1_nbr2_unet_64
+    
     # - deconfounder_r2_nbr2_unet_2
+    # - deconfounder_r2_nbr2_unet_4
+    # - deconfounder_r2_nbr2_unet_8
+    # - deconfounder_r2_nbr2_unet_16
+    # - deconfounder_r2_nbr2_unet_32
+    # - deconfounder_r2_nbr2_unet_64

@@ -1,0 +1,53 @@
+# Template for deconfounder + temporal unet. Variants are selected by algo name,
+# e.g. deconfounder_r1_temporal_unet_8 or deconfounder_r2_nbr2_temporal_unet_2. The Snakefile
+# parses the name into overrides for method.radius, method.encoder_conv2,
+# (optional) method.nbr_treatment_radius, and the unet_base_chan search
+# space (which widens to include 64 when encoder_conv2=64).
+needs_train_test_split: false
+use_interference: true
+
+method:
+  _target_: sci.algorithms.Deconfounder
+  kernel_size: 3
+  # Required; populated from the algo name by the Snakefile.
+  radius: ???
+  encoder_conv2: ???
+  nbr_treatment_radius: null
+  connectivity: 8
+  encoder_pool: max
+  lr_cvae: 1e-3
+  beta_epoch_max: 5
+  epochs_cvae: 30
+  encoder_conv1: 64
+  # temporal unet head (matched to temporal_unet.yaml)
+  head: temporal_unet
+  epochs_head: 50
+  lr_head: 1e-3
+  weight_decay_head: 1e-4
+  bilinear: true
+  unet_base_chan: 32
+
+
+tune:
+  param_space:
+    # CVAE tuning
+    weight_decay_cvae:
+      _target_: ray.tune.loguniform
+      _args_: [1e-5, 1e-3]
+    lr_cvae:
+      _target_: ray.tune.loguniform
+      _args_: [1e-4, 1e-2]
+    beta_max:
+      _target_: ray.tune.loguniform
+      _args_: [1e-3, 1]
+    # UNet head tuning (same ranges as temporal_unet.yaml)
+    unet_base_chan:
+      _target_: ray.tune.choice
+      _args_:
+        - [16, 32]
+    lr_head:
+      _target_: ray.tune.loguniform
+      _args_: [1e-4, 1e-2]
+    weight_decay_head:
+      _target_: ray.tune.loguniform
+      _args_: [1e-5, 1e-3]
