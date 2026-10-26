@@ -1,6 +1,0 @@
-needs_train_test_split: false
-use_interference: false
-
-method:
-  _target_: sci.algorithms.pysal_spreg.GMLag
-  w_lags: 1

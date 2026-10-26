@@ -1,7 +1,0 @@
-needs_train_test_split: false
-use_interference: false
-
-method:
-  _target_: sci.algorithms.pysal_spreg.GMSpatialDurbin
-  w_lags: 1
-  slx_lags: 1
