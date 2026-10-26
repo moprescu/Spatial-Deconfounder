@@ -1,5 +1,0 @@
-needs_train_test_split: false
-use_interference: false
-
-method:
-  _target_: spacebench.algorithms.GMError
