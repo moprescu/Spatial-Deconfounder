@@ -1316,8 +1316,10 @@ def create_grid_features_compact(dftrain, radius=2, fill_missing='mean', a=None,
             c_start_clamped = max(0, c_start)
             c_end_clamped = min(n_cols, c_end)
 
+            # copy: the treatment changes below must not leak into full_grid,
+            # i.e. into the neighborhoods of points processed later
             neighborhood = full_grid[r_start_clamped:r_end_clamped,
-                                     c_start_clamped:c_end_clamped]
+                                     c_start_clamped:c_end_clamped].copy()
 
             # Pad with NaN so edges don't get false fill values
             if pad_top or pad_left or pad_bottom or pad_right:
