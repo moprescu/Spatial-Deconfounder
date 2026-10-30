@@ -1286,6 +1286,17 @@ def create_grid_features_compact(dftrain, radius=2, fill_missing='mean', a=None,
     else:
         nbr_half_masks = None
 
+    # With binary treatment interactions, a neighbor's interaction cell is that
+    # neighbor's own covariate times its (new) treatment. Covariate grids, filled and
+    # padded like the feature windows, to look up the covariate of each window cell.
+    interact = bool(is_binary_treatment) and spaceenv is not None and spaceenv.binary_treatment_iteractions
+    cov_grids = {}
+    if interact and extra_colnames is not None:
+        for cov in covariates:
+            g = np.full((n_rows, n_cols), fill_values[cov], dtype=np.float64)
+            g[rows - min_row, cols - min_col] = result_df[cov].fillna(fill_values[cov]).values
+            cov_grids[cov] = np.pad(g, radius, mode='constant', constant_values=np.nan)
+
     # For each feature
     for col in feature_cols:
         # Initialize full grid
@@ -1393,7 +1404,13 @@ def create_grid_features_compact(dftrain, radius=2, fill_missing='mean', a=None,
                         col_idx = extra_colnames.index(col)
                         covariate_val = result_df[covariates[col_idx]].iloc[i]
                         extra_value = covariate_val * a
-                
+
+                # covariate of the unit in each cell of this window (for neighbor cells)
+                cov_window = None
+                if interact:
+                    cov_window = cov_grids[covariates[extra_colnames.index(col)]][
+                        r:r + 2 * radius + 1, c:c + 2 * radius + 1]
+
                 if change == "center":
                     # Change center cell to the calculated extra value
                     neighborhood[center_r, center_c] = extra_value
@@ -1402,10 +1419,13 @@ def create_grid_features_compact(dftrain, radius=2, fill_missing='mean', a=None,
                     for nr in range(neighborhood.shape[0]):
                         for nc in range(neighborhood.shape[1]):
                             if nr != center_r or nc != center_c:  # Not the center
-                                neighborhood[nr, nc] = extra_value
+                                neighborhood[nr, nc] = (extra_value if cov_window is None
+                                                        else cov_window[nr, nc] * a)
                 elif change == "nbr_k" and nbr_idx is not None:
                     nbr_dr, nbr_dc = nbr_positions[nbr_idx - 1]
-                    neighborhood[center_r + nbr_dr, center_c + nbr_dc] = extra_value
+                    neighborhood[center_r + nbr_dr, center_c + nbr_dc] = (
+                        extra_value if cov_window is None
+                        else cov_window[center_r + nbr_dr, center_c + nbr_dc] * a)
                 elif change == "nbr_half":
                     mask_i = nbr_half_masks[i]
                     for k_idx, (nbr_dr, nbr_dc) in enumerate(nbr_positions):
@@ -1415,9 +1435,7 @@ def create_grid_features_compact(dftrain, radius=2, fill_missing='mean', a=None,
                             col_idx = extra_colnames.index(col)
                             ev = spline_basis[col_idx](t_m_pct)
                         elif is_binary_treatment and spaceenv.binary_treatment_iteractions:
-                            col_idx = extra_colnames.index(col)
-                            covariate_val = result_df[covariates[col_idx]].iloc[i]
-                            ev = covariate_val * m_a
+                            ev = cov_window[center_r + nbr_dr, center_c + nbr_dc] * m_a
                         else:
                             ev = extra_value
                         neighborhood[center_r + nbr_dr, center_c + nbr_dc] = ev
@@ -1488,6 +1506,11 @@ def create_grid_features_compact(dftrain, radius=2, fill_missing='mean', a=None,
                 # Format: "{col}_{dr}_{dc}"
                 parts = cell_col_name.split('_')
                 dr, dc = int(parts[-2]), int(parts[-1])
+
+                # Neighbor cells with interactions were already stored from the window
+                # (each neighbor's own covariate times its new treatment)
+                if interact and (dr != 0 or dc != 0):
+                    continue
 
                 # Calculate the appropriate value for this extra column
                 # (skipped for nbr_half, which computes per-neighbor values below)
